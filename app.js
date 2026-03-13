@@ -110,16 +110,17 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 
     recognition.onresult = (event) => {
-        let transcript = "";
+        let transcript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
+            if (event.results[i].isFinal) transcript += event.results[i][0].transcript;
         }
+        if (!transcript) return;
         console.log('Voice Input Raw:', transcript);
         processVoiceCommand(transcript.toLowerCase());
     };
 
     recognition.onerror = (event) => {
-        console.warn('Speech Recognition Error:', event.error);
+        console.warn('Speech Error:', event.error);
         if (event.error === 'not-allowed') {
             isListening = false;
             document.getElementById('mic-btn').classList.remove('active');
@@ -128,116 +129,88 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 }
 
 function startVoiceRecognition() {
-    if (!recognition) {
-        alert("Sesli komut desteklenmiyor.");
-        return;
-    }
+    if (!recognition) { alert('Sesli komut desteklenmiyor.'); return; }
 
     if (isListening) {
         isListening = false;
         recognition.stop();
-        speak("Sesli kontrol kapatıldı.");
+        speak('Sesli kontrol kapatıldı.');
     } else {
         isListening = true;
-        
-        // MOBILE AUDIO UNLOCK: Play/Pause audio element + silent speech
+        // Unlock mobile audio
         const audio = document.getElementById('bismillahAudio');
-        if (audio) {
-            audio.play().then(() => audio.pause()).catch(() => {});
-        }
-        speak("", true); 
-
+        if (audio) audio.play().then(() => audio.pause()).catch(() => {});
         try {
             recognition.start();
-            speak("Dinliyorum");
+            setTimeout(() => speak('Dinliyorum'), 400);
         } catch(e) {
-            console.error("Recognition start failed:", e);
+            console.error('Recognition start failed:', e);
+            isListening = false;
         }
     }
 }
 
 function speak(text, isSilent = false) {
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        
-        let speechText = (text || " ").toString();
-        
-        // Sadece sayısal/hesaplama sonuçlarındaki noktaları "nokta" diye oku
-        // "Dinliyorum..." gibi metinlerdeki noktaları temizle
-        if (!isSilent) {
-            if (/^[0-9.]+$/.test(speechText.trim())) {
-                speechText = speechText.replace(/\./g, ' nokta ');
-            } else {
-                speechText = speechText.replace(/\./g, ''); 
-            }
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    let s = String(text || ' ');
+    if (!isSilent) {
+        if (/^-?[0-9]+(\.?[0-9]*)$/.test(s.trim())) {
+            s = s.replace('.', ' nokta ');
+        } else {
+            s = s.replace(/\./g, '');
         }
-        
-        const utterance = new SpeechSynthesisUtterance(speechText);
-        utterance.lang = 'tr-TR';
-        utterance.volume = isSilent ? 0 : 1;
-        utterance.rate = 1.0;
-        window.speechSynthesis.speak(utterance);
     }
+    setTimeout(() => {
+        const u = new SpeechSynthesisUtterance(s);
+        u.lang = 'tr-TR';
+        u.volume = isSilent ? 0 : 1;
+        u.rate = 1.0;
+        window.speechSynthesis.speak(u);
+    }, 50);
 }
 
 function processVoiceCommand(text) {
-    let raw = text.toLowerCase().trim();
+    // Normalise
+    let raw = text.toLowerCase().trim().replace(/[.,?!]/g, '');
     if (!raw) return;
-    
-    // 1. Remove trailing punctuation that might break regex
-    raw = raw.replace(/[.?!,]/g, '');
 
-    // 2. Map Turkish Number Words to digits with accumulation logic
-    // (e.g., "yirmi beş" -> "20 5" -> "25")
-    const units = { 'sıfır':0, 'bir':1, 'iki':2, 'üç':3, 'dört':4, 'beş':5, 'altı':6, 'yedi':7, 'sekiz':8, 'dokuz':9 };
-    const tens = { 'on':10, 'yirmi':20, 'otuz':30, 'kırk':40, 'elli':50, 'altmış':60, 'yetmiş':70, 'seksen':80, 'doksan':90 };
-    const hundreds = { 'yüz':100 };
+    // Step 1 – replace operator words with spaced symbols FIRST
+    raw = raw
+        .replace(/çarpı|kere|defa/g, ' * ')
+        .replace(/bölü/g,            ' / ')
+        .replace(/artı|topla/g,      ' + ')
+        .replace(/eksi|çıkar/g,       ' - ')
+        .replace(/virgül/g,          '.');
 
-    let words = raw.split(/\s+/);
-    let processedWords = [];
-    
-    for (let i = 0; i < words.length; i++) {
-        let w = words[i];
-        if (tens[w] !== undefined) {
-            let val = tens[w];
-            // Check if next word is unit (e.g., "yirmi beş")
-            if (i+1 < words.length && units[words[i+1]] !== undefined) {
-                val += units[words[i+1]];
-                i++;
-            }
-            processedWords.push(val.toString());
-        } else if (units[w] !== undefined) {
-            processedWords.push(units[w].toString());
-        } else if (hundreds[w] !== undefined) {
-            processedWords.push(hundreds[w].toString());
-        } else {
-            processedWords.push(w);
-        }
-    }
+    // Step 2 – replace number words with digits (longest match first)
+    const numMap = [
+        ['doksan', '90'], ['seksen', '80'], ['yetmiş', '70'], ['altmış', '60'],
+        ['elli',   '50'], ['kırk',   '40'], ['otuz',   '30'], ['yirmi',   '20'],
+        ['on',    '10'], ['yüz',   '100'],
+        ['sıfır',  '0'], ['bir',    '1'], ['iki',    '2'], ['üç',     '3'],
+        ['dört',   '4'], ['beş',   '5'], ['altı',  '6'], ['yedi',   '7'],
+        ['sekiz', '8'], ['dokuz',  '9']
+    ];
+    numMap.forEach(([w, d]) => {
+        raw = raw.replace(new RegExp('\\b' + w + '\\b', 'g'), d);
+    });
 
-    let cmd = processedWords.join('')
-             .replace(/çarpı|kere|defa|x|\*/g, '*')
-             .replace(/bölü|payla|\//g, '/')
-             .replace(/artı|topla|toplam|\+/g, '+')
-             .replace(/eksi|çıkar|fark|−|-/g, '-')
-             .replace(/virgül|nokta/g, '.')
-             .replace(/\s+/g, '');
+    // Step 3 – merge adjacent digit groups into single number
+    // e.g. "20 5" -> "25"  but NOT across an operator
+    raw = raw.replace(/(\d)\s+(\d)/g, '$1$2');
+    // Remove leftover spaces
+    raw = raw.replace(/\s+/g, '');
 
-    console.log('Final Command:', cmd);
+    console.log('Processed Command:', raw);
 
-    // 3. Final Validation and Execution
-    if (/^[0-9+\-*/.()]+$/.test(cmd)) {
-        currentInput = cmd;
+    // Step 4 – validate and execute
+    if (/^[0-9+\-*/.()]+$/.test(raw) && raw.length > 0) {
+        currentInput = raw;
         updateDisplay();
         calculate(true);
     } else {
-        // Fallback: try removing everything that isn't a math char
-        let ultraClean = cmd.replace(/[^0-9+\-*/.()]/g, '');
-        if (ultraClean.length > 0 && /^[0-9+\-*/.()]+$/.test(ultraClean)) {
-            currentInput = ultraClean;
-            updateDisplay();
-            calculate(true);
-        }
+        console.log('Could not parse:', raw);
     }
 }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'barantech-v13';
+const CACHE_NAME = 'barantech-v14';
 const ASSETS = [
     './',
     './style.css?v=1.3',
