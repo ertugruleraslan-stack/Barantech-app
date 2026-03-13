@@ -5,13 +5,20 @@ let memoryValue = 0;
 let rates = { USD: null, EUR: null, GBP: null };
 
 // --- Tab System ---
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tabId) btn.classList.add('active');
+    });
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+        if (content.id === tabId) content.classList.add('active');
+    });
+}
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-        btn.classList.add('active');
-        document.getElementById(btn.dataset.tab).classList.add('active');
+        switchTab(btn.dataset.tab);
     });
 });
 
@@ -187,9 +194,17 @@ function speak(text, isSilent = false) {
 }
 
 function processVoiceCommand(text) {
+    let original = text.toLowerCase().trim();
+    if (!original) return;
+
+    // Currency Query Handling
+    if (original.includes('dolar') || original.includes('euro') || original.includes('avro') || original.includes('sterlin') || original.includes('lira') || original.includes('tl')) {
+        handleCurrencyVoice(original);
+        return;
+    }
+
     // Normalise: lowercase, remove punctuation, collapse whitespace
-    let raw = ' ' + text.toLowerCase().trim().replace(/[.,?!;:]/g, '') + ' ';
-    if (!raw.trim()) return;
+    let raw = ' ' + original.replace(/[.,?!;:]/g, '') + ' ';
 
     console.log('Voice step0:', raw);
 
@@ -235,6 +250,65 @@ function processVoiceCommand(text) {
         calculate(true);
     } else {
         console.log('Voice: no valid math expression found in:', raw);
+    }
+}
+
+function handleCurrencyVoice(text) {
+    if (!rates.USD) {
+        speak("Döviz verileri henüz yüklenmedi.");
+        return;
+    }
+
+    // Basic regex to find amount and currency
+    // Example: "5 dolar kaç lira", "bir euro kaç tl"
+    let amount = 1;
+    const numWords = { 'bir': 1, 'iki': 2, 'üç': 3, 'dört': 4, 'beş': 5, 'altı': 6, 'yedi': 7, 'sekiz': 8, 'dokuz': 9, 'on': 10 };
+    
+    // Find first number or word-number
+    let words = text.split(/\s+/);
+    for (let w of words) {
+        if (!isNaN(parseFloat(w))) {
+            amount = parseFloat(w);
+            break;
+        } else if (numWords[w]) {
+            amount = numWords[w];
+            break;
+        }
+    }
+
+    let resultMsg = "";
+    let targetId = "";
+    let targetValId = "";
+
+    if (text.includes('dolar')) {
+        const res = (amount / rates.USD).toFixed(2);
+        resultMsg = `${amount} dolar, ${res} Türk lirası yapıyor.`;
+        switchTab('finance');
+        document.getElementById('usd_val').value = amount;
+        updateCurrencyToTRY('usd');
+    } else if (text.includes('euro') || text.includes('avro')) {
+        const res = (amount / rates.EUR).toFixed(2);
+        resultMsg = `${amount} euro, ${res} Türk lirası yapıyor.`;
+        switchTab('finance');
+        document.getElementById('eur_val').value = amount;
+        updateCurrencyToTRY('eur');
+    } else if (text.includes('sterlin')) {
+        const res = (amount / rates.GBP).toFixed(2);
+        resultMsg = `${amount} sterlin, ${res} Türk lirası yapıyor.`;
+        switchTab('finance');
+        document.getElementById('gbp_val').value = amount;
+        updateCurrencyToTRY('gbp');
+    } else if (text.includes('lira') || text.includes('tl')) {
+        const usd = (amount * rates.USD).toFixed(2);
+        const eur = (amount * rates.EUR).toFixed(2);
+        resultMsg = `${amount} lira; ${usd} dolar ve ${eur} euro yapıyor.`;
+        switchTab('finance');
+        document.getElementById('try_val').value = amount;
+        updateCurrencyFromTRY();
+    }
+
+    if (resultMsg) {
+        speak(resultMsg);
     }
 }
 
@@ -468,7 +542,7 @@ window.onload = () => {
 
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=10')
+        navigator.serviceWorker.register('./sw.js?v=11')
             .then(reg => console.log('SW Registered', reg))
             .catch(err => console.log('SW Error', err));
     }
