@@ -14,13 +14,17 @@
     <script>
         // AGGRESSIVE UPDATE CHECK
         (function() {
-            const VERSION = '1.6';
+            const VERSION = '1.7';
             if (localStorage.getItem('barantech_v') !== VERSION) {
                 if ('serviceWorker' in navigator) {
+                    // Forcefully unregister everything and clear caches
                     navigator.serviceWorker.getRegistrations().then(regs => {
                         for(let reg of regs) reg.unregister();
-                        localStorage.setItem('barantech_v', VERSION);
-                        window.location.reload(true);
+                        caches.keys().then(names => {
+                            for (let name of names) caches.delete(name);
+                            localStorage.setItem('barantech_v', VERSION);
+                            window.location.reload(true);
+                        });
                     });
                 } else {
                     localStorage.setItem('barantech_v', VERSION);
@@ -445,7 +449,7 @@
     <!-- Audio Element -->
     <audio id="bismillahAudio" src="bismillah.mp3"></audio>
 
-    <script src="app.js?v=1.6"></script>
+    <script src="app.js?v=1.7"></script>
     <script>
         // Secondary check just in case
         if ('serviceWorker' in navigator) {
