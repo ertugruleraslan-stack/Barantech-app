@@ -127,19 +127,27 @@ header h1 {
     background: #f8f9fa;
     padding: 5px;
     border-bottom: 1px solid #eee;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.tabs::-webkit-scrollbar {
+    display: none;
 }
 
 .tab-btn {
-    flex: 1;
+    flex: 0 0 auto;
     border: none;
     background: none;
-    padding: 10px 5px;
+    padding: 10px 12px;
     font-size: 0.85rem;
     font-weight: 700;
     color: #666;
     cursor: pointer;
     transition: all 0.3s;
     border-radius: 10px;
+    white-space: nowrap;
 }
 
 .tab-btn.active {
