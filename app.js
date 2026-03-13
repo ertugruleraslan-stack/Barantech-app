@@ -112,9 +112,9 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     recognition.onresult = (event) => {
         let transcript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) transcript += event.results[i][0].transcript;
+            transcript += event.results[i][0].transcript; // take all, not just isFinal
         }
-        if (!transcript) return;
+        if (!transcript.trim()) return;
         console.log('Voice Input Raw:', transcript);
         processVoiceCommand(transcript.toLowerCase());
     };
@@ -171,46 +171,53 @@ function speak(text, isSilent = false) {
 }
 
 function processVoiceCommand(text) {
-    // Normalise
-    let raw = text.toLowerCase().trim().replace(/[.,?!]/g, '');
-    if (!raw) return;
+    // Normalise: lowercase, remove punctuation, collapse whitespace
+    let raw = ' ' + text.toLowerCase().trim().replace(/[.,?!;:]/g, '') + ' ';
+    if (!raw.trim()) return;
 
-    // Step 1 – replace operator words with spaced symbols FIRST
+    console.log('Voice step0:', raw);
+
+    // Step 1 – operator words -> spaced symbols (pad with spaces so numbers won't run together)
     raw = raw
-        .replace(/çarpı|kere|defa/g, ' * ')
-        .replace(/bölü/g,            ' / ')
-        .replace(/artı|topla/g,      ' + ')
-        .replace(/eksi|çıkar/g,       ' - ')
-        .replace(/virgül/g,          '.');
+        .replace(/ çarpı | kere | defa /g, ' * ')
+        .replace(/ bölü /g,                   ' / ')
+        .replace(/ artı | topla /g,          ' + ')
+        .replace(/ eksi | çıkar /g,          ' - ')
+        .replace(/ virgül /g,               '.');
 
-    // Step 2 – replace number words with digits (longest match first)
+    console.log('Voice step1 (ops):', raw);
+
+    // Step 2 – number words -> digits (longest first, space-padded to avoid partial match)
     const numMap = [
         ['doksan', '90'], ['seksen', '80'], ['yetmiş', '70'], ['altmış', '60'],
         ['elli',   '50'], ['kırk',   '40'], ['otuz',   '30'], ['yirmi',   '20'],
-        ['on',    '10'], ['yüz',   '100'],
-        ['sıfır',  '0'], ['bir',    '1'], ['iki',    '2'], ['üç',     '3'],
+        ['yüz',   '100'], ['on',    '10'],
+        ['sıfır',  '0'], ['bir',    '1'], ['iki',    '2'], ['üç',    '3'],
         ['dört',   '4'], ['beş',   '5'], ['altı',  '6'], ['yedi',   '7'],
         ['sekiz', '8'], ['dokuz',  '9']
     ];
     numMap.forEach(([w, d]) => {
-        raw = raw.replace(new RegExp('\\b' + w + '\\b', 'g'), d);
+        // Pad with spaces so 'on' doesn't partially hit 'doksan' etc.
+        raw = raw.split(' ' + w + ' ').join(' ' + d + ' ');
     });
 
-    // Step 3 – merge adjacent digit groups into single number
-    // e.g. "20 5" -> "25"  but NOT across an operator
-    raw = raw.replace(/(\d)\s+(\d)/g, '$1$2');
-    // Remove leftover spaces
-    raw = raw.replace(/\s+/g, '');
+    console.log('Voice step2 (nums):', raw);
 
-    console.log('Processed Command:', raw);
+    // Step 3 – merge adjacent digits ("20 5" -> "25") but not across operators
+    // Remove leading/trailing spaces first
+    raw = raw.trim();
+    raw = raw.replace(/(\d) (\d)/g, '$1$2'); // merge only digit-SPACE-digit
+    raw = raw.replace(/ /g, '');              // remove remaining spaces
 
-    // Step 4 – validate and execute
-    if (/^[0-9+\-*/.()]+$/.test(raw) && raw.length > 0) {
+    console.log('Voice step3 (final):', raw);
+
+    // Step 4 – validate and run
+    if (raw.length > 0 && /^[0-9+\-*/.()]+$/.test(raw)) {
         currentInput = raw;
         updateDisplay();
         calculate(true);
     } else {
-        console.log('Could not parse:', raw);
+        console.log('Voice: no valid math expression found in:', raw);
     }
 }
 
