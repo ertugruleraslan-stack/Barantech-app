@@ -14,7 +14,7 @@
     <script>
         // AGGRESSIVE UPDATE CHECK
         (function () {
-            const VERSION = '2.0';
+            const VERSION = '2.1';
             if (localStorage.getItem('barantech_v') !== VERSION) {
                 if ('serviceWorker' in navigator) {
                     // Forcefully unregister everything and clear caches
@@ -73,7 +73,7 @@
                     <button class="btn mem" onclick="memoryRecall()">MR</button>
                     <button class="btn mem" onclick="memoryMinus()">M-</button>
                     <button class="btn mem" onclick="memoryPlus()">M+</button>
-                    <button class="btn op" onclick="backspace()">⌫</button>
+                    <button class="btn sci mic-btn" id="mic-btn" onclick="startVoiceRecognition()">🎙️</button>
 
                     <!-- Scientific Row -->
                     <button class="btn sci" onclick="append('Math.sqrt(')">√</button>
@@ -87,6 +87,7 @@
                     <button class="btn op" onclick="append('/')">÷</button>
                     <button class="btn op" onclick="append('*')">×</button>
                     <button class="btn op" onclick="append('-')">−</button>
+                    <button class="btn op" onclick="backspace()">⌫</button>
                     <button class="btn danger" onclick="clearDisplay()">C</button>
 
                     <!-- Numbers & Main Controls -->
@@ -349,7 +350,7 @@
     <!-- Audio Element -->
     <audio id="bismillahAudio" src="bismillah.mp3"></audio>
 
-    <script src="app.js?v=2.0"></script>
+    <script src="app.js?v=2.1"></script>
     <script>
         // Secondary check just in case
         if ('serviceWorker' in navigator) {
