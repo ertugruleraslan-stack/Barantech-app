@@ -125,11 +125,12 @@ header h1 {
 .tabs {
     display: flex;
     background: #f8f9fa;
-    padding: 5px;
-    border-bottom: 1px solid #eee;
+    padding: 3px;
+    border-bottom: 2px solid #eee;
     overflow-x: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    justify-content: space-between; /* Desktop for balanced feel */
 }
 
 .tabs::-webkit-scrollbar {
@@ -137,17 +138,26 @@ header h1 {
 }
 
 .tab-btn {
-    flex: 0 0 auto;
+    flex: 1; /* Balanced distribution */
     border: none;
     background: none;
-    padding: 10px 12px;
-    font-size: 0.85rem;
+    padding: 10px 4px;
+    font-size: 0.72rem; /* Adjusted for 6 items */
     font-weight: 700;
     color: #666;
     cursor: pointer;
-    transition: all 0.3s;
-    border-radius: 10px;
+    transition: all 0.2s ease;
+    border-radius: 8px;
     white-space: nowrap;
+    text-align: center;
+    min-width: fit-content;
+}
+
+@media (min-width: 400px) {
+    .tab-btn {
+        font-size: 0.8rem;
+        padding: 10px 8px;
+    }
 }
 
 .tab-btn.active {
@@ -496,6 +506,5 @@ footer a {
 }
 
 .tab-btn {
-    padding: 10px 2px; /* Slight adjustment for 6 tabs */
-    font-size: 0.75rem;
+    /* Removed redundant override */
 }
