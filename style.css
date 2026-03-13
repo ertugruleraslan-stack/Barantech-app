@@ -125,12 +125,12 @@ header h1 {
 .tabs {
     display: flex;
     background: #f8f9fa;
-    padding: 3px;
+    padding: 8px 5px;
     border-bottom: 2px solid #eee;
     overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    justify-content: space-between; /* Desktop for balanced feel */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE */
+    gap: 8px; /* Spacing between buttons */
 }
 
 .tabs::-webkit-scrollbar {
@@ -138,32 +138,27 @@ header h1 {
 }
 
 .tab-btn {
-    flex: 1; /* Balanced distribution */
+    flex: 0 0 auto;
     border: none;
-    background: none;
-    padding: 10px 4px;
-    font-size: 0.72rem; /* Adjusted for 6 items */
+    background: #fff;
+    padding: 10px 18px;
+    font-size: 0.95rem;
     font-weight: 700;
-    color: #666;
+    color: #555;
     cursor: pointer;
     transition: all 0.2s ease;
-    border-radius: 8px;
+    border-radius: 12px;
     white-space: nowrap;
     text-align: center;
-    min-width: fit-content;
-}
-
-@media (min-width: 400px) {
-    .tab-btn {
-        font-size: 0.8rem;
-        padding: 10px 8px;
-    }
+    border: 1px solid #eee;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
 }
 
 .tab-btn.active {
-    background: #fff;
-    color: var(--header-bg);
-    box-shadow: var(--shadow);
+    background: var(--header-bg);
+    color: #fff;
+    border-color: var(--header-bg);
+    box-shadow: 0 4px 8px rgba(26, 39, 68, 0.2);
 }
 
 .content {
@@ -505,6 +500,4 @@ footer a {
     color: #888;
 }
 
-.tab-btn {
-    /* Removed redundant override */
-}
+/* End of styles */
