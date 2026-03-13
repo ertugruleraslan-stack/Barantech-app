@@ -235,15 +235,15 @@ header h1 {
 }
 
 .mic-btn {
-    background: #ffcdd2 !important; /* Pasifken Kırmızı */
+    background: #ff5252 !important; /* Net Kırmızı */
     font-size: 1.4rem !important;
     transition: all 0.3s ease;
-    color: #b71c1c !important;
+    color: #fff !important;
 }
 
 .mic-btn.active {
-    background: #c8e6c9 !important; /* Aktifken Yeşil */
-    color: #2e7d32 !important;
+    background: #4caf50 !important; /* Net Yeşil */
+    color: #fff !important;
     animation: pulse-green 1.5s infinite;
 }
 

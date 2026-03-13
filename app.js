@@ -150,10 +150,15 @@ function startVoiceRecognition() {
 
 function speak(text, isSilent = false) {
     if ('speechSynthesis' in window) {
-        // Cancel any ongoing speech
         window.speechSynthesis.cancel();
         
-        const utterance = new SpeechSynthesisUtterance(text || " ");
+        // Ondalık rakamları okurken noktaya "nokta" demesi için düzenleme
+        let speechText = (text || " ").toString();
+        if (!isSilent) {
+            speechText = speechText.replace(/\./g, ' nokta ');
+        }
+        
+        const utterance = new SpeechSynthesisUtterance(speechText);
         utterance.lang = 'tr-TR';
         utterance.volume = isSilent ? 0 : 1;
         utterance.rate = 1.0;
