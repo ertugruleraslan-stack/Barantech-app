@@ -14,7 +14,7 @@
     <script>
         // AGGRESSIVE UPDATE CHECK
         (function() {
-            const VERSION = '1.7';
+            const VERSION = '1.8';
             if (localStorage.getItem('barantech_v') !== VERSION) {
                 if ('serviceWorker' in navigator) {
                     // Forcefully unregister everything and clear caches
@@ -60,7 +60,6 @@
             <button class="tab-btn" data-tab="hvac">HVAC</button>
             <button class="tab-btn" data-tab="elec">Elektrik/Elek.</button>
             <button class="tab-btn" data-tab="finance">Döviz</button>
-            <button class="tab-btn" data-tab="bom">Maliyet</button>
             <button class="tab-btn" data-tab="worldclock">Saat</button>
         </div>
 
@@ -305,106 +304,8 @@
                 </div>
             </section>
 
-            <!-- BOM Tab -->
-            <section id="bom" class="tab-content">
-                <div class="card">
-                    <h3>Ürün Bilgisi</h3>
-                    <div class="input-group">
-                        <div style="display:flex; gap:10px; width:100%; margin-bottom: 5px;">
-                            <input type="text" id="product_name" placeholder="Ürün Adı" value="Yeni Ürün" style="width:50%; padding:10px; border-radius:10px; border:1px solid #ddd; font-family:inherit;">
-                            <input type="text" id="product_version" placeholder="Versiyon (Örn: Rev.01)" style="width:25%; padding:10px; border-radius:10px; border:1px solid #ddd; font-family:inherit;">
-                            <input type="date" id="product_date" style="width:25%; padding:10px; border-radius:10px; border:1px solid #ddd; font-family:inherit;">
-                        </div>
-                        <textarea id="product_notes" placeholder="Ürün Hakkında Notlar" rows="3" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; font-family:inherit;"></textarea>
-                        <textarea id="potential_buyers" placeholder="Potansiyel Alıcılar (Sektör ve Firmalar)" rows="3" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; font-family:inherit;"></textarea>
-                    </div>
-                </div>
-
-                <div class="card bom-card">
-                    <h3>Malzeme Listesi (BOM)</h3>
-                    <div class="bom-table-container">
-                        <table class="bom-table" id="bom_table">
-                            <thead>
-                                <tr>
-                                    <th>Stok Kodu</th>
-                                    <th>Parça Adı</th>
-                                    <th>Firma</th>
-                                    <th style="text-align: right;">Miktar</th>
-                                    <th style="text-align: right;">% Fire</th>
-                                    <th style="text-align: right;">Birim Fiyatı</th>
-                                    <th>Döviz</th>
-                                    <th style="text-align: right;">Toplam Fiyat</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody id="bom_body">
-                                <!-- Rows will be added dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div class="bom-actions">
-                        <button class="full" onclick="addBOMRow()">➕ Satır Ekle</button>
-                    </div>
-
-                    <div class="card labor-card" style="margin-top: 20px; border: 1px solid #e1e4e8; background: #fcfcfc;">
-                        <h4 style="margin-bottom:10px; color:var(--header-bg);">İşçilik ve Genel Giderler</h4>
-                        <div class="input-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                            <div class="input-item">
-                                <label style="font-size:0.75rem; color:#666;">İşçilik Süresi (Saat)</label>
-                                <input type="number" id="labor_hours" value="1" oninput="calculateBOM()" style="width:100%;">
-                            </div>
-                            <div class="input-item">
-                                <label style="font-size:0.75rem; color:#666;">İşçilik Saat Ücreti (TL)</label>
-                                <input type="number" id="labor_rate" value="500" oninput="calculateBOM()" style="width:100%;">
-                            </div>
-                            <div class="input-item">
-                                <label style="font-size:0.75rem; color:#666;">Genel Gider (TL/Saat)</label>
-                                <input type="number" id="overhead_rate" value="200" oninput="calculateBOM()" style="width:100%;">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="grand-total-container" style="flex-direction: column; gap:8px; margin-top:20px; font-size: 0.95rem;">
-                        <div style="display: flex; justify-content: space-between; width: 100%;">
-                            <span>Toplam Malzeme Maliyeti:</span>
-                            <span id="summary_material" style="text-align: right;">0.00 TL</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; width: 100%;">
-                            <span>Toplam İşçilik Maliyeti:</span>
-                            <span id="summary_labor" style="text-align: right;">0.00 TL</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; width: 100%;">
-                            <span>Toplam Genel Gider:</span>
-                            <span id="summary_overhead" style="text-align: right;">0.00 TL</span>
-                        </div>
-                        
-                        <hr style="border-top: 1px solid rgba(255,255,255,0.2); width:100%; margin: 5px 0;">
-                        
-                        <div style="display: flex; justify-content: space-between; width: 100%;">
-                            <span style="font-weight: bold;">Genel Toplam Maliyet:</span>
-                            <span id="grand_total_try" style="font-size: 1.3rem; color: var(--accent); text-align: right; font-weight: bold;">0.00 TL</span>
-                        </div>
-                        
-                        <div id="grand_total_other" style="width: 100%; border-top: 1px solid rgba(255,255,255,0.2); padding-top:10px; margin-top:5px; font-size: 0.9rem; color: #fff; opacity:0.9; display:flex; flex-direction:column; gap:5px;">
-                            <div style="display:flex; justify-content:space-between; width:100%;"><span>Dolar ($):</span> <span id="grand_total_usd" style="text-align: right;">$ 0.00</span></div>
-                            <div style="display:flex; justify-content:space-between; width:100%;"><span>Euro (€):</span> <span id="grand_total_eur" style="text-align: right;">€ 0.00</span></div>
-                        </div>
-
-                        <!-- Kâr ve Satış Fiyatı -->
-                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed rgba(255,255,255,0.4); display: flex; flex-direction: column; gap: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                                <span>Hedef Kar Marjı (%):</span>
-                                <input type="number" id="profit_margin" value="20" oninput="calculateBOM()" style="width: 80px; text-align: right; padding: 5px; border-radius: 5px; border: none; font-weight: bold; font-family: inherit;">
-                            </div>
-                            <div style="display: flex; justify-content: space-between; width: 100%; margin-top: 5px; align-items: center;">
-                                <span style="font-size: 1.1rem; font-weight: bold; color: #4CAF50;">Önerilen Satış Fiyatı:</span>
-                                <span id="suggested_price" style="font-size: 1.4rem; font-weight: bold; color: #4CAF50; text-align: right;">0.00 TL</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </section>
+
             <!-- World Clock Tab -->
             <section id="worldclock" class="tab-content">
                 <div class="card" style="margin-bottom: 15px; background: var(--header-bg); color: #fff; text-align: center; padding: 10px;">
@@ -449,7 +350,7 @@
     <!-- Audio Element -->
     <audio id="bismillahAudio" src="bismillah.mp3"></audio>
 
-    <script src="app.js?v=1.7"></script>
+    <script src="app.js?v=1.8"></script>
     <script>
         // Secondary check just in case
         if ('serviceWorker' in navigator) {
