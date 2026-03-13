@@ -176,14 +176,18 @@ function startVoiceRecognition() {
 function speak(text, isSilent = false) {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
+    
     let s = String(text || ' ');
+    
     if (!isSilent) {
-        if (/^-?[0-9]+(\.[0-9]+)?$/.test(s.trim())) {
-            s = s.replace('.', ' nokta ');
-        } else {
-            s = s.replace(/\./g, '');
-        }
+        // Replace dots in numbers with " nokta " (e.g., 44.19 -> 44 nokta 19)
+        // This regex looks for digits followed by a dot and more digits
+        s = s.replace(/(\d+)\.(\d+)/g, '$1 nokta $2');
+        
+        // Remove trailing or standalone dots (like in "Dinliyorum...")
+        s = s.replace(/\.+$/g, '');
     }
+
     setTimeout(() => {
         const u = new SpeechSynthesisUtterance(s);
         u.lang = 'tr-TR';
@@ -561,7 +565,7 @@ window.onload = () => {
 
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=12')
+        navigator.serviceWorker.register('./sw.js?v=13')
             .then(reg => console.log('SW Registered', reg))
             .catch(err => console.log('SW Error', err));
     }
