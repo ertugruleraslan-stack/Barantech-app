@@ -87,6 +87,7 @@ function calculate(isVoice = false) {
 // --- Voice Command Logic ---
 let recognition;
 let isListening = false;
+let isMuted = false; // prevents mic picking up the app's own TTS
 
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -110,9 +111,10 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 
     recognition.onresult = (event) => {
+        if (isMuted) return; // ignore while app is speaking
         let transcript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript; // take all, not just isFinal
+            transcript += event.results[i][0].transcript;
         }
         if (!transcript.trim()) return;
         console.log('Voice Input Raw:', transcript);
@@ -128,6 +130,19 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 }
 
+function unlockMobileAudio() {
+    // Use AudioContext (doesn't need a file)
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const buf = ctx.createBuffer(1, 1, 22050);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ctx.destination);
+        src.start(0);
+        setTimeout(() => ctx.close(), 200);
+    } catch(e) {}
+}
+
 function startVoiceRecognition() {
     if (!recognition) { alert('Sesli komut desteklenmiyor.'); return; }
 
@@ -137,12 +152,13 @@ function startVoiceRecognition() {
         speak('Sesli kontrol kapatıldı.');
     } else {
         isListening = true;
-        // Unlock mobile audio
-        const audio = document.getElementById('bismillahAudio');
-        if (audio) audio.play().then(() => audio.pause()).catch(() => {});
+        unlockMobileAudio();
         try {
             recognition.start();
-            setTimeout(() => speak('Dinliyorum'), 400);
+            // Mute mic while we say 'Dinliyorum' so it doesn't process itself
+            isMuted = true;
+            speak('Dinliyorum');
+            setTimeout(() => { isMuted = false; }, 1800);
         } catch(e) {
             console.error('Recognition start failed:', e);
             isListening = false;
@@ -155,7 +171,7 @@ function speak(text, isSilent = false) {
     window.speechSynthesis.cancel();
     let s = String(text || ' ');
     if (!isSilent) {
-        if (/^-?[0-9]+(\.?[0-9]*)$/.test(s.trim())) {
+        if (/^-?[0-9]+(\.[0-9]+)?$/.test(s.trim())) {
             s = s.replace('.', ' nokta ');
         } else {
             s = s.replace(/\./g, '');
@@ -180,10 +196,11 @@ function processVoiceCommand(text) {
     // Step 1 – operator words -> spaced symbols (pad with spaces so numbers won't run together)
     raw = raw
         .replace(/ çarpı | kere | defa /g, ' * ')
-        .replace(/ bölü /g,                   ' / ')
-        .replace(/ artı | topla /g,          ' + ')
-        .replace(/ eksi | çıkar /g,          ' - ')
-        .replace(/ virgül /g,               '.');
+        .replace(/ bölü /g,                 ' / ')
+        .replace(/ artı | topla /g,         ' + ')
+        .replace(/ eksi | çıkar /g,         ' - ')
+        .replace(/ virgül /g,               '.')
+        .replace(/ x /g,                    ' * '); // PC Chrome sometimes sends 'x' for multiply
 
     console.log('Voice step1 (ops):', raw);
 
