@@ -1,4 +1,4 @@
-const CACHE_NAME = 'barantech-v4';
+const CACHE_NAME = 'barantech-v5';
 const ASSETS = [
     './',
     './index.html',
