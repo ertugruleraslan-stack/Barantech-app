@@ -407,7 +407,7 @@ window.onload = () => {
 
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js')
+        navigator.serviceWorker.register('./sw.js?v=2')
             .then(reg => console.log('SW Registered', reg))
             .catch(err => console.log('SW Error', err));
     }
