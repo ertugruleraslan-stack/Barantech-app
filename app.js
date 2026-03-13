@@ -113,9 +113,12 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 
     recognition.onresult = (event) => {
-        const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+        }
         console.log('Voice Input:', transcript);
-        processVoiceCommand(transcript);
+        processVoiceCommand(transcript.toLowerCase());
     };
 
     recognition.onerror = (event) => {
@@ -152,10 +155,16 @@ function speak(text, isSilent = false) {
     if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
         
-        // Ondalık rakamları okurken noktaya "nokta" demesi için düzenleme
         let speechText = (text || " ").toString();
+        
+        // Sadece sayısal/hesaplama sonuçlarındaki noktaları "nokta" diye oku
+        // "Dinliyorum..." gibi metinlerdeki noktaları temizle
         if (!isSilent) {
-            speechText = speechText.replace(/\./g, ' nokta ');
+            if (/^[0-9.]+$/.test(speechText.trim())) {
+                speechText = speechText.replace(/\./g, ' nokta ');
+            } else {
+                speechText = speechText.replace(/\./g, ''); 
+            }
         }
         
         const utterance = new SpeechSynthesisUtterance(speechText);
@@ -433,7 +442,7 @@ window.onload = () => {
 
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=7')
+        navigator.serviceWorker.register('./sw.js?v=8')
             .then(reg => console.log('SW Registered', reg))
             .catch(err => console.log('SW Error', err));
     }
