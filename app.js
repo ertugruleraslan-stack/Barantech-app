@@ -86,58 +86,115 @@ function calculate(isVoice = false) {
 
 // --- Voice Command Logic ---
 let recognition;
+let isListening = false;
+
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
     recognition.lang = 'tr-TR';
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = false;
 
     recognition.onstart = () => {
-        document.getElementById('mic-btn').classList.add('recording');
+        isListening = true;
+        document.getElementById('mic-btn').classList.add('active');
+        console.log('Listening started...');
     };
 
     recognition.onend = () => {
-        document.getElementById('mic-btn').classList.remove('recording');
+        // If we want it to be continuous, restart if isListening is still true
+        if (isListening) {
+            console.log('Restarting recognition...');
+            recognition.start();
+        } else {
+            document.getElementById('mic-btn').classList.remove('active');
+            console.log('Listening stopped.');
+        }
     };
 
     recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript.toLowerCase();
+        const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+        console.log('Voice Input:', transcript);
         processVoiceCommand(transcript);
+    };
+
+    recognition.onerror = (event) => {
+        console.error('Speech Recognition Error:', event.error);
+        if (event.error === 'not-allowed') {
+            isListening = false;
+            document.getElementById('mic-btn').classList.remove('active');
+        }
     };
 }
 
 function startVoiceRecognition() {
-    if (recognition) {
-        recognition.start();
-    } else {
+    if (!recognition) {
         alert("Sesli komut desteklenmiyor.");
+        return;
+    }
+
+    if (isListening) {
+        // Stop it
+        isListening = false;
+        recognition.stop();
+        speak("Sesli kontrol kapatıldı.");
+    } else {
+        // Start it
+        isListening = true;
+        // MOBILE AUDIO FIX: Trigger a dummy silent sound to unlock audio on mobile
+        speak("", true); 
+        recognition.start();
+        speak("Dinliyorum...");
     }
 }
 
-function speak(text) {
+function speak(text, isSilent = false) {
     if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
+        // Cancel any ongoing speech
+        window.speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(text || " ");
         utterance.lang = 'tr-TR';
+        utterance.volume = isSilent ? 0 : 1;
+        utterance.rate = 1.0;
         window.speechSynthesis.speak(utterance);
     }
 }
 
 function processVoiceCommand(text) {
-    let cmd = text.toLowerCase();
+    let cmd = text.toLowerCase().trim();
+    if (!cmd) return;
     
-    // Common word to digit mapping
-    const mapa = {'sıfır':'0','bir':'1','iki':'2','üç':'3','dört':'4','beş':'5','altı':'6','yedi':'7','sekiz':'8','dokuz':'9','on':'10','yirmi':'20','otuz':'30','kırk':'40','elli':'50'};
-    Object.keys(mapa).forEach(w => cmd = cmd.replace(new RegExp(w, 'g'), mapa[w]));
+    // Turkish numbers and operators
+    const mapa = {
+        'beş': '5', 'sıfır': '0', 'bir': '1', 'iki': '2', 'üç': '3', 'dört': '4',
+        'altı': '6', 'yedi': '7', 'sekiz': '8', 'dokuz': '9', 'on': '10', 
+        'yirmi': '20', 'otuz': '30', 'kırk': '40', 'elli': '50', 'altmış': '60', 
+        'yetmiş': '70', 'seksen': '80', 'doksan': '90', 'yüz': '100'
+    };
+    
+    // Replace words with digits
+    Object.keys(mapa).sort((a,b) => b.length - a.length).forEach(w => {
+        cmd = cmd.replace(new RegExp(w, 'g'), mapa[w]);
+    });
 
-    cmd = cmd.replace(/çarpı|kere|defa/g, '*').replace(/bölü/g, '/').replace(/artı|topla/g, '+').replace(/eksi|çıkar/g, '-').replace(/virgül/g, '.').replace(/\s/g, '');
+    cmd = cmd.replace(/çarpı|kere|defa/g, '*')
+             .replace(/bölü/g, '/')
+             .replace(/artı|topla/g, '+')
+             .replace(/eksi|çıkar/g, '-')
+             .replace(/virgül/g, '.')
+             .replace(/\s/g, '');
+
+    // Common misunderstood phrases
+    if (cmd.includes('tekrardene')) { speak("Tekrar deniyorum"); return; }
 
     if (/^[0-9+\-*/.()]+$/.test(cmd)) {
         currentInput = cmd;
         updateDisplay();
         calculate(true);
     } else {
-        speak("Anlayamadım: " + text);
+        // Just notification, don't interrupt too much if it's continuous
+        console.log("Could not parse command:", cmd);
     }
 }
 
@@ -371,7 +428,7 @@ window.onload = () => {
 
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=6')
+        navigator.serviceWorker.register('./sw.js?v=7')
             .then(reg => console.log('SW Registered', reg))
             .catch(err => console.log('SW Error', err));
     }
