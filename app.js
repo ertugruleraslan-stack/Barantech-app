@@ -255,98 +255,6 @@ function updateCurrencyToTRY(type) {
     document.getElementById('to_try_gbp').innerText = `₺ ${(gbpVal / rates.GBP).toFixed(2)}`;
 }
 
-// --- BOM Logic ---
-function addBOMRow() {
-    const tbody = document.getElementById('bom_body');
-    const row = document.createElement('tr');
-    row.innerHTML = `
-        <td><input type="text" class="item-sku" placeholder="SKU"></td>
-        <td><input type="text" class="item-name" placeholder="Parça"></td>
-        <td><input type="text" class="item-firm" placeholder="Firma"></td>
-        <td><input type="number" class="item-qty" value="1" oninput="calculateBOM()" style="text-align: right; width: 60px;"></td>
-        <td><input type="number" class="item-scrap" value="0" oninput="calculateBOM()" style="text-align: right; width: 60px;"></td>
-        <td><input type="number" class="item-price" value="0" oninput="calculateBOM()" style="text-align: right; width: 80px;"></td>
-        <td>
-            <select class="item-cur" onchange="calculateBOM()" style="padding:4px; border-radius:6px; border:1px solid #ddd;">
-                <option value="TRY">TL</option>
-                <option value="USD">$</option>
-                <option value="EUR">€</option>
-            </select>
-        </td>
-        <td class="row-total" style="text-align: right; font-weight: 500;">0,00</td>
-        <td><button class="remove-btn" onclick="removeBOMRow(this)">×</button></td>
-    `;
-    tbody.appendChild(row);
-    calculateBOM();
-}
-
-function removeBOMRow(btn) {
-    btn.closest('tr').remove();
-    calculateBOM();
-}
-
-function calculateBOM() {
-    let totalMaterialTRY = 0;
-    const rows = document.querySelectorAll('#bom_body tr');
-    
-    // Ensure we have current rates. rates.USD is 1 TRY value in USD (e.g., 0.03)
-    // To get 1 USD value in TRY: 1 / rates.USD
-    const usdToTry = rates.USD ? (1 / rates.USD) : 0;
-    const eurToTry = rates.EUR ? (1 / rates.EUR) : 0;
-
-    rows.forEach(row => {
-        const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
-        const scrap = parseFloat(row.querySelector('.item-scrap').value) || 0;
-        const price = parseFloat(row.querySelector('.item-price').value) || 0;
-        const cur = row.querySelector('.item-cur').value;
-        
-        // Fire hesaplaması: Miktar fire oranı kadar arttırılır
-        const finalQty = qty * (1 + (scrap / 100));
-
-        let rowTotalTRY = 0;
-        if (cur === 'USD') {
-            rowTotalTRY = finalQty * price * usdToTry;
-        } else if (cur === 'EUR') {
-            rowTotalTRY = finalQty * price * eurToTry;
-        } else {
-            rowTotalTRY = finalQty * price;
-        }
-        
-        totalMaterialTRY += rowTotalTRY;
-        // İki ondalık hassasiyet, Türk formatı ile virgüllü
-        row.querySelector('.row-total').innerText = rowTotalTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    });
-
-    // Labor & Overhead
-    const laborHours = parseFloat(document.getElementById('labor_hours').value) || 0;
-    const laborRate = parseFloat(document.getElementById('labor_rate').value) || 0;
-    const overheadRate = parseFloat(document.getElementById('overhead_rate').value) || 0;
-
-    const totalLaborTRY = laborHours * laborRate;
-    const totalOverheadTRY = laborHours * overheadRate;
-    
-    // Alt toplamlar güncelleme
-    document.getElementById('summary_material').innerText = totalMaterialTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
-    document.getElementById('summary_labor').innerText = totalLaborTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
-    document.getElementById('summary_overhead').innerText = totalOverheadTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
-
-    const grandTotalTRY = totalMaterialTRY + totalLaborTRY + totalOverheadTRY;
-    const grandTotalUSD = usdToTry > 0 ? (grandTotalTRY / usdToTry) : 0;
-    const grandTotalEUR = eurToTry > 0 ? (grandTotalTRY / eurToTry) : 0;
-    
-    // Genel Toplam
-    document.getElementById('grand_total_try').innerText = grandTotalTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
-    document.getElementById('grand_total_usd').innerText = "$ " + grandTotalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    document.getElementById('grand_total_eur').innerText = "€ " + grandTotalEUR.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    // Hedef Kar Marjı ve Önerilen Satış Fiyatı
-    const profitMargin = parseFloat(document.getElementById('profit_margin').value) || 0;
-    // Satış Fiyatı = Maliyet * (1 + Kar Marjı / 100) -> Geleneksel Mark-up
-    const markupPrice = grandTotalTRY * (1 + (profitMargin / 100));
-
-    document.getElementById('suggested_price').innerText = markupPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
-}
-
 // --- World Clock Logic ---
 function updateWorldClocks() {
     const cities = [
@@ -390,13 +298,7 @@ function updateWorldClocks() {
 // --- Startup ---
 const audio = document.getElementById('bismillahAudio');
 window.onload = () => {
-    // Bugünün tarihini varsayılan olarak set et
-    const today = new Date().toISOString().split('T')[0];
-    const dateInput = document.getElementById('product_date');
-    if (dateInput) dateInput.value = today;
-
     fetchRates();
-    addBOMRow(); // Add one empty row initially
     updateWorldClocks();
     setInterval(updateWorldClocks, 1000); // Update every second
     
@@ -407,7 +309,7 @@ window.onload = () => {
 
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=3')
+        navigator.serviceWorker.register('./sw.js?v=5')
             .then(reg => console.log('SW Registered', reg))
             .catch(err => console.log('SW Error', err));
     }

@@ -13,13 +13,13 @@
     <link rel="manifest" href="manifest.json">
     <script>
         // AGGRESSIVE UPDATE CHECK
-        (function() {
-            const VERSION = '1.9';
+        (function () {
+            const VERSION = '2.0';
             if (localStorage.getItem('barantech_v') !== VERSION) {
                 if ('serviceWorker' in navigator) {
                     // Forcefully unregister everything and clear caches
                     navigator.serviceWorker.getRegistrations().then(regs => {
-                        for(let reg of regs) reg.unregister();
+                        for (let reg of regs) reg.unregister();
                         caches.keys().then(names => {
                             for (let name of names) caches.delete(name);
                             localStorage.setItem('barantech_v', VERSION);
@@ -304,11 +304,10 @@
                 </div>
             </section>
 
-            </section>
-
             <!-- World Clock Tab -->
             <section id="worldclock" class="tab-content">
-                <div class="card" style="margin-bottom: 15px; background: var(--header-bg); color: #fff; text-align: center; padding: 10px;">
+                <div class="card"
+                    style="margin-bottom: 15px; background: var(--header-bg); color: #fff; text-align: center; padding: 10px;">
                     <p style="font-size: 0.8rem; opacity: 0.8;">📍 Küresel Operasyon Saatleri (Canlı)</p>
                 </div>
                 <div class="world-clock-grid">
@@ -350,7 +349,7 @@
     <!-- Audio Element -->
     <audio id="bismillahAudio" src="bismillah.mp3"></audio>
 
-    <script src="app.js?v=1.9"></script>
+    <script src="app.js?v=2.0"></script>
     <script>
         // Secondary check just in case
         if ('serviceWorker' in navigator) {
