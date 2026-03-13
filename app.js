@@ -281,26 +281,26 @@ function handleCurrencyVoice(text) {
     let targetValId = "";
 
     if (text.includes('dolar')) {
-        const res = (amount / rates.USD).toFixed(2);
+        const res = (amount * rates.USD).toFixed(2);
         resultMsg = `${amount} dolar, ${res} Türk lirası yapıyor.`;
         switchTab('finance');
         document.getElementById('usd_val').value = amount;
-        updateCurrencyToTRY('usd');
+        updateCurrencyToTRY();
     } else if (text.includes('euro') || text.includes('avro')) {
-        const res = (amount / rates.EUR).toFixed(2);
+        const res = (amount * rates.EUR).toFixed(2);
         resultMsg = `${amount} euro, ${res} Türk lirası yapıyor.`;
         switchTab('finance');
         document.getElementById('eur_val').value = amount;
-        updateCurrencyToTRY('eur');
+        updateCurrencyToTRY();
     } else if (text.includes('sterlin')) {
-        const res = (amount / rates.GBP).toFixed(2);
+        const res = (amount * rates.GBP).toFixed(2);
         resultMsg = `${amount} sterlin, ${res} Türk lirası yapıyor.`;
         switchTab('finance');
         document.getElementById('gbp_val').value = amount;
-        updateCurrencyToTRY('gbp');
+        updateCurrencyToTRY();
     } else if (text.includes('lira') || text.includes('tl')) {
-        const usd = (amount * rates.USD).toFixed(2);
-        const eur = (amount * rates.EUR).toFixed(2);
+        const usd = (amount / rates.USD).toFixed(2);
+        const eur = (amount / rates.EUR).toFixed(2);
         resultMsg = `${amount} lira; ${usd} dolar ve ${eur} euro yapıyor.`;
         switchTab('finance');
         document.getElementById('try_val').value = amount;
@@ -455,37 +455,56 @@ function calcPCB() {
 // --- Finance Logic ---
 async function fetchRates() {
     const stEl = document.getElementById('cur_update');
-    stEl.innerText = "Kurlar güncelleniyor...";
+    if (stEl) stEl.innerText = "Kurlar güncelleniyor...";
+    
     try {
-        const response = await fetch('https://api.frankfurter.app/latest?from=TRY&to=USD,EUR,GBP');
-        const data = await response.json();
-        rates = data.rates;
-        stEl.innerText = "✅ Kurlar güncel: " + new Date().toLocaleTimeString();
-        updateCurrencyFromTRY();
+        // Try getting everything relative to 1 USD/EUR/GBP for more accuracy
+        const [usdRes, eurRes, gbpRes] = await Promise.all([
+            fetch('https://api.frankfurter.app/latest?from=USD&to=TRY'),
+            fetch('https://api.frankfurter.app/latest?from=EUR&to=TRY'),
+            fetch('https://api.frankfurter.app/latest?from=GBP&to=TRY')
+        ]);
+
+        const [usdData, eurData, gbpData] = await Promise.all([
+            usdRes.json(),
+            eurRes.json(),
+            gbpRes.json()
+        ]);
+
+        // We'll store how many TRY is 1 unit of foreign currency
+        rates = {
+            USD: usdData.rates.TRY,
+            EUR: eurData.rates.TRY,
+            GBP: gbpData.rates.TRY
+        };
+
+        if (stEl) stEl.innerText = "✅ Kurlar güncel: " + new Date().toLocaleTimeString();
+        updateCurrencyToTRY(); // recalculate existing inputs
     } catch (e) {
-        stEl.innerText = "⚠ Güncelleme başarısız.";
+        console.error("Rate fetch failed:", e);
+        if (stEl) stEl.innerText = "⚠ Güncelleme başarısız.";
     }
 }
 
 function updateCurrencyFromTRY() {
-    const val = parseFloat(document.getElementById('try_val').value);
-    if (isNaN(val) || !rates.USD) return;
-    document.getElementById('res_usd').innerText = `$ ${(val * rates.USD).toFixed(4)}`;
-    document.getElementById('res_eur').innerText = `€ ${(val * rates.EUR).toFixed(4)}`;
-    document.getElementById('res_gbp').innerText = `£ ${(val * rates.GBP).toFixed(4)}`;
+    const val = parseFloat(document.getElementById('try_val').value) || 0;
+    if (!rates.USD) return;
+    
+    document.getElementById('res_usd').innerText = `$ ${(val / rates.USD).toFixed(4)}`;
+    document.getElementById('res_eur').innerText = `€ ${(val / rates.EUR).toFixed(4)}`;
+    document.getElementById('res_gbp').innerText = `£ ${(val / rates.GBP).toFixed(4)}`;
 }
 
-function updateCurrencyToTRY(type) {
+function updateCurrencyToTRY() {
     if (!rates.USD) return;
 
     const usdVal = parseFloat(document.getElementById('usd_val').value) || 0;
     const eurVal = parseFloat(document.getElementById('eur_val').value) || 0;
     const gbpVal = parseFloat(document.getElementById('gbp_val').value) || 0;
 
-    // Update individual results for all three currencies simultaneously
-    document.getElementById('to_try_usd').innerText = `₺ ${(usdVal / rates.USD).toFixed(2)}`;
-    document.getElementById('to_try_eur').innerText = `₺ ${(eurVal / rates.EUR).toFixed(2)}`;
-    document.getElementById('to_try_gbp').innerText = `₺ ${(gbpVal / rates.GBP).toFixed(2)}`;
+    document.getElementById('to_try_usd').innerText = `₺ ${(usdVal * rates.USD).toFixed(2)}`;
+    document.getElementById('to_try_eur').innerText = `₺ ${(eurVal * rates.EUR).toFixed(2)}`;
+    document.getElementById('to_try_gbp').innerText = `₺ ${(gbpVal * rates.GBP).toFixed(2)}`;
 }
 
 // --- World Clock Logic ---
@@ -542,7 +561,7 @@ window.onload = () => {
 
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=11')
+        navigator.serviceWorker.register('./sw.js?v=12')
             .then(reg => console.log('SW Registered', reg))
             .catch(err => console.log('SW Error', err));
     }
