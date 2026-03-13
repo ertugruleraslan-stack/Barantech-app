@@ -14,7 +14,7 @@
     <script>
         // AGGRESSIVE UPDATE CHECK
         (function () {
-            const VERSION = '2.4';
+            const VERSION = '2.5';
             if (localStorage.getItem('barantech_v') !== VERSION) {
                 if ('serviceWorker' in navigator) {
                     // Forcefully unregister everything and clear caches
@@ -350,7 +350,7 @@
     <!-- Audio Element -->
     <audio id="bismillahAudio" src="bismillah.mp3"></audio>
 
-    <script src="app.js?v=2.4"></script>
+    <script src="app.js?v=2.5"></script>
     <script>
         // Secondary check just in case
         if ('serviceWorker' in navigator) {

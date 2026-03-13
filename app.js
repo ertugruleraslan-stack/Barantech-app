@@ -92,38 +92,34 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
     recognition.lang = 'tr-TR';
-    recognition.continuous = true;
+    recognition.continuous = false; // Using false + manual restart for better compatibility
     recognition.interimResults = false;
 
     recognition.onstart = () => {
         isListening = true;
         document.getElementById('mic-btn').classList.add('active');
-        console.log('Listening started...');
+        console.log('Voice session active');
     };
 
     recognition.onend = () => {
-        // If we want it to be continuous, restart if isListening is still true
         if (isListening) {
-            console.log('Restarting recognition...');
-            recognition.start();
+            recognition.start(); // Auto-restart to simulate continuous
         } else {
             document.getElementById('mic-btn').classList.remove('active');
-            console.log('Listening stopped.');
         }
     };
 
     recognition.onresult = (event) => {
-        let transcript = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-        }
-        console.log('Voice Input:', transcript);
-        processVoiceCommand(transcript.toLowerCase());
+        const transcript = event.results[0][0].transcript.toLowerCase();
+        console.log('Recognized:', transcript);
+        processVoiceCommand(transcript);
     };
 
     recognition.onerror = (event) => {
-        console.error('Speech Recognition Error:', event.error);
-        if (event.error === 'not-allowed') {
+        console.error('Speech Error:', event.error);
+        if (event.error === 'no-speech') {
+            // Ignore, will restart onEnd
+        } else {
             isListening = false;
             document.getElementById('mic-btn').classList.remove('active');
         }
@@ -132,22 +128,23 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
 function startVoiceRecognition() {
     if (!recognition) {
-        alert("Sesli komut desteklenmiyor.");
+        alert("Tarayıcınız sesli komut özelliğini desteklemiyor.");
         return;
     }
 
     if (isListening) {
-        // Stop it
         isListening = false;
         recognition.stop();
         speak("Sesli kontrol kapatıldı.");
     } else {
-        // Start it
         isListening = true;
-        // MOBILE AUDIO FIX: Trigger a dummy silent sound to unlock audio on mobile
-        speak("", true); 
-        recognition.start();
-        speak("Dinliyorum...");
+        speak("", true); // Unlock mobile audio
+        try {
+            recognition.start();
+            speak("Dinliyorum");
+        } catch(e) {
+            console.error("Start failed:", e);
+        }
     }
 }
 
@@ -179,7 +176,7 @@ function processVoiceCommand(text) {
     let cmd = text.toLowerCase().trim();
     if (!cmd) return;
     
-    // Turkish numbers and operators
+    // Improved Turkish mapping
     const mapa = {
         'beş': '5', 'sıfır': '0', 'bir': '1', 'iki': '2', 'üç': '3', 'dört': '4',
         'altı': '6', 'yedi': '7', 'sekiz': '8', 'dokuz': '9', 'on': '10', 
@@ -187,28 +184,37 @@ function processVoiceCommand(text) {
         'yetmiş': '70', 'seksen': '80', 'doksan': '90', 'yüz': '100'
     };
     
-    // Replace words with digits
+    // Sort keys to replace longer ones first (e.g., 'on' should not break 'onaltı' if it was there)
     Object.keys(mapa).sort((a,b) => b.length - a.length).forEach(w => {
         cmd = cmd.replace(new RegExp(w, 'g'), mapa[w]);
     });
 
-    cmd = cmd.replace(/çarpı|kere|defa/g, '*')
-             .replace(/bölü/g, '/')
-             .replace(/artı|topla/g, '+')
-             .replace(/eksi|çıkar/g, '-')
-             .replace(/virgül/g, '.')
+    // Replace operators with symbols
+    cmd = cmd.replace(/çarpı|kere|defa|x|\*/g, '*')
+             .replace(/bölü|payla|\//g, '/')
+             .replace(/artı|topla|toplam|\+/g, '+')
+             .replace(/eksi|çıkar|fark|−|-/g, '-')
+             .replace(/virgül|nokta/g, '.')
              .replace(/\s/g, '');
 
-    // Common misunderstood phrases
-    if (cmd.includes('tekrardene')) { speak("Tekrar deniyorum"); return; }
+    console.log('Processed Command:', cmd);
 
+    // Validate if it's a safe math expression
     if (/^[0-9+\-*/.()]+$/.test(cmd)) {
         currentInput = cmd;
         updateDisplay();
         calculate(true);
     } else {
-        // Just notification, don't interrupt too much if it's continuous
-        console.log("Could not parse command:", cmd);
+        // If it's not a pure math expression, maybe try one last cleanup
+        // Remove everything except numbers and operators
+        let cleanCmd = cmd.replace(/[^0-9+\-*/.()]/g, '');
+        if (cleanCmd.length > 0 && /^[0-9+\-*/.()]+$/.test(cleanCmd)) {
+            currentInput = cleanCmd;
+            updateDisplay();
+            calculate(true);
+        } else {
+            console.log("Ignored non-math voice input:", cmd);
+        }
     }
 }
 
@@ -442,7 +448,7 @@ window.onload = () => {
 
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=8')
+        navigator.serviceWorker.register('./sw.js?v=9')
             .then(reg => console.log('SW Registered', reg))
             .catch(err => console.log('SW Error', err));
     }
