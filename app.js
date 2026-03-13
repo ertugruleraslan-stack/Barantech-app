@@ -92,34 +92,35 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
     recognition.lang = 'tr-TR';
-    recognition.continuous = false; // Using false + manual restart for better compatibility
+    recognition.continuous = true;
     recognition.interimResults = false;
 
     recognition.onstart = () => {
         isListening = true;
         document.getElementById('mic-btn').classList.add('active');
-        console.log('Voice session active');
+        console.log('Voice Active');
     };
 
     recognition.onend = () => {
         if (isListening) {
-            recognition.start(); // Auto-restart to simulate continuous
+            try { recognition.start(); } catch(e) {}
         } else {
             document.getElementById('mic-btn').classList.remove('active');
         }
     };
 
     recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript.toLowerCase();
-        console.log('Recognized:', transcript);
-        processVoiceCommand(transcript);
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+        }
+        console.log('Voice Input Raw:', transcript);
+        processVoiceCommand(transcript.toLowerCase());
     };
 
     recognition.onerror = (event) => {
-        console.error('Speech Error:', event.error);
-        if (event.error === 'no-speech') {
-            // Ignore, will restart onEnd
-        } else {
+        console.warn('Speech Recognition Error:', event.error);
+        if (event.error === 'not-allowed') {
             isListening = false;
             document.getElementById('mic-btn').classList.remove('active');
         }
@@ -128,7 +129,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
 function startVoiceRecognition() {
     if (!recognition) {
-        alert("Tarayıcınız sesli komut özelliğini desteklemiyor.");
+        alert("Sesli komut desteklenmiyor.");
         return;
     }
 
@@ -138,12 +139,19 @@ function startVoiceRecognition() {
         speak("Sesli kontrol kapatıldı.");
     } else {
         isListening = true;
-        speak("", true); // Unlock mobile audio
+        
+        // MOBILE AUDIO UNLOCK: Play/Pause audio element + silent speech
+        const audio = document.getElementById('bismillahAudio');
+        if (audio) {
+            audio.play().then(() => audio.pause()).catch(() => {});
+        }
+        speak("", true); 
+
         try {
             recognition.start();
             speak("Dinliyorum");
         } catch(e) {
-            console.error("Start failed:", e);
+            console.error("Recognition start failed:", e);
         }
     }
 }
@@ -173,47 +181,62 @@ function speak(text, isSilent = false) {
 }
 
 function processVoiceCommand(text) {
-    let cmd = text.toLowerCase().trim();
-    if (!cmd) return;
+    let raw = text.toLowerCase().trim();
+    if (!raw) return;
     
-    // Improved Turkish mapping
-    const mapa = {
-        'beş': '5', 'sıfır': '0', 'bir': '1', 'iki': '2', 'üç': '3', 'dört': '4',
-        'altı': '6', 'yedi': '7', 'sekiz': '8', 'dokuz': '9', 'on': '10', 
-        'yirmi': '20', 'otuz': '30', 'kırk': '40', 'elli': '50', 'altmış': '60', 
-        'yetmiş': '70', 'seksen': '80', 'doksan': '90', 'yüz': '100'
-    };
-    
-    // Sort keys to replace longer ones first (e.g., 'on' should not break 'onaltı' if it was there)
-    Object.keys(mapa).sort((a,b) => b.length - a.length).forEach(w => {
-        cmd = cmd.replace(new RegExp(w, 'g'), mapa[w]);
-    });
+    // 1. Remove trailing punctuation that might break regex
+    raw = raw.replace(/[.?!,]/g, '');
 
-    // Replace operators with symbols
-    cmd = cmd.replace(/çarpı|kere|defa|x|\*/g, '*')
+    // 2. Map Turkish Number Words to digits with accumulation logic
+    // (e.g., "yirmi beş" -> "20 5" -> "25")
+    const units = { 'sıfır':0, 'bir':1, 'iki':2, 'üç':3, 'dört':4, 'beş':5, 'altı':6, 'yedi':7, 'sekiz':8, 'dokuz':9 };
+    const tens = { 'on':10, 'yirmi':20, 'otuz':30, 'kırk':40, 'elli':50, 'altmış':60, 'yetmiş':70, 'seksen':80, 'doksan':90 };
+    const hundreds = { 'yüz':100 };
+
+    let words = raw.split(/\s+/);
+    let processedWords = [];
+    
+    for (let i = 0; i < words.length; i++) {
+        let w = words[i];
+        if (tens[w] !== undefined) {
+            let val = tens[w];
+            // Check if next word is unit (e.g., "yirmi beş")
+            if (i+1 < words.length && units[words[i+1]] !== undefined) {
+                val += units[words[i+1]];
+                i++;
+            }
+            processedWords.push(val.toString());
+        } else if (units[w] !== undefined) {
+            processedWords.push(units[w].toString());
+        } else if (hundreds[w] !== undefined) {
+            processedWords.push(hundreds[w].toString());
+        } else {
+            processedWords.push(w);
+        }
+    }
+
+    let cmd = processedWords.join('')
+             .replace(/çarpı|kere|defa|x|\*/g, '*')
              .replace(/bölü|payla|\//g, '/')
              .replace(/artı|topla|toplam|\+/g, '+')
              .replace(/eksi|çıkar|fark|−|-/g, '-')
              .replace(/virgül|nokta/g, '.')
-             .replace(/\s/g, '');
+             .replace(/\s+/g, '');
 
-    console.log('Processed Command:', cmd);
+    console.log('Final Command:', cmd);
 
-    // Validate if it's a safe math expression
+    // 3. Final Validation and Execution
     if (/^[0-9+\-*/.()]+$/.test(cmd)) {
         currentInput = cmd;
         updateDisplay();
         calculate(true);
     } else {
-        // If it's not a pure math expression, maybe try one last cleanup
-        // Remove everything except numbers and operators
-        let cleanCmd = cmd.replace(/[^0-9+\-*/.()]/g, '');
-        if (cleanCmd.length > 0 && /^[0-9+\-*/.()]+$/.test(cleanCmd)) {
-            currentInput = cleanCmd;
+        // Fallback: try removing everything that isn't a math char
+        let ultraClean = cmd.replace(/[^0-9+\-*/.()]/g, '');
+        if (ultraClean.length > 0 && /^[0-9+\-*/.()]+$/.test(ultraClean)) {
+            currentInput = ultraClean;
             updateDisplay();
             calculate(true);
-        } else {
-            console.log("Ignored non-math voice input:", cmd);
         }
     }
 }
@@ -448,7 +471,7 @@ window.onload = () => {
 
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=9')
+        navigator.serviceWorker.register('./sw.js?v=10')
             .then(reg => console.log('SW Registered', reg))
             .catch(err => console.log('SW Error', err));
     }
