@@ -94,7 +94,7 @@ function calculate(isVoice = false) {
 // --- Voice Command Logic ---
 let recognition;
 let isListening = false;
-let isMuted = false; // prevents mic picking up the app's own TTS
+let isMuted = false;
 
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -104,21 +104,28 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     recognition.interimResults = false;
 
     recognition.onstart = () => {
-        isListening = true;
-        document.getElementById('mic-btn').classList.add('active');
-        console.log('Voice Active');
+        console.log('Voice: Recognition Started');
     };
 
     recognition.onend = () => {
+        console.log('Voice: Recognition Ended');
         if (isListening) {
-            try { recognition.start(); } catch(e) {}
+            // Keep listening - small delay to prevent rapid-fire errors
+            setTimeout(() => {
+                if (isListening) {
+                    try { recognition.start(); } catch(e) { console.error("Auto-restart failed", e); }
+                }
+            }, 300);
         } else {
             document.getElementById('mic-btn').classList.remove('active');
         }
     };
 
     recognition.onresult = (event) => {
-        if (isMuted) return; // ignore while app is speaking
+        if (isMuted) {
+            console.log('Voice: Ignored (Muted while TTS is active)');
+            return;
+        }
         let transcript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
             transcript += event.results[i][0].transcript;
@@ -129,7 +136,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 
     recognition.onerror = (event) => {
-        console.warn('Speech Error:', event.error);
+        console.error('Voice: Error', event.error);
         if (event.error === 'not-allowed') {
             isListening = false;
             document.getElementById('mic-btn').classList.remove('active');
@@ -153,22 +160,33 @@ function unlockMobileAudio() {
 function startVoiceRecognition() {
     if (!recognition) { alert('Sesli komut desteklenmiyor.'); return; }
 
+    const micBtn = document.getElementById('mic-btn');
+
     if (isListening) {
+        console.log('Voice: Intent to STOP');
         isListening = false;
-        recognition.stop();
+        recognition.abort(); // Hard stop to clear state
+        micBtn.classList.remove('active');
         speak('Sesli kontrol kapatıldı.');
     } else {
+        console.log('Voice: Intent to START');
         isListening = true;
+        micBtn.classList.add('active');
         unlockMobileAudio();
+        
         try {
             recognition.start();
-            // Mute mic while we say 'Dinliyorum' so it doesn't process itself
+            // TTS 'Dinliyorum' - block internal processing for 2 seconds
             isMuted = true;
             speak('Dinliyorum');
-            setTimeout(() => { isMuted = false; }, 1800);
+            setTimeout(() => { 
+                isMuted = false; 
+                console.log('Voice: Microphone is now UNMUTED and listening for user');
+            }, 2000);
         } catch(e) {
-            console.error('Recognition start failed:', e);
+            console.error('Recognition start error:', e);
             isListening = false;
+            micBtn.classList.remove('active');
         }
     }
 }
@@ -565,7 +583,7 @@ window.onload = () => {
 
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=13')
+        navigator.serviceWorker.register('./sw.js?v=14')
             .then(reg => console.log('SW Registered', reg))
             .catch(err => console.log('SW Error', err));
     }
